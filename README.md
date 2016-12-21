@@ -1,6 +1,6 @@
 # duplicate-file-finder-and-remover
 
-The script searches given directory with subdirectory finds duplicate files and remove or move them other directory. The script can search duplications for specific file type. It check simply file type on file extension.
+The script search given directory with subdirectory, finds duplicate files and removes or moves them other directory. The script can search duplications for specific file type. It checks simply file type on file extension.
 
 Firstly files are grouped as file sizes. And unique file size group members are not inclueded into comparasion process. This feature provides explicit improvement on runtime.
 
