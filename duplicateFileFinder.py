@@ -155,7 +155,8 @@ def removeDuplicateFiles(duplicateFileDict, removable=False):
 		listOfFile = duplicateFileDict[hashValue]
 		for filename in listOfFile:
 			if listOfFile.index(filename) == 1: # don't remove first file keep them as original file
-				print ("Don't remoed : "+filename+" keept as original.")
+				# print ("Don't removed : "+filename+" keept as original.")
+				pass
 			else :
 				if removable :
 					os.remove(filename)
@@ -163,11 +164,19 @@ def removeDuplicateFiles(duplicateFileDict, removable=False):
 					print ("Removed file : "+filename)
 				else :
 					path, name 	= os.path.split(filename)
-					filenamePrefix = str(random.randrange(1,99999999))
-					destinationFilename = os.getcwd()+os.sep+'duplicated_files'+os.sep+filenamePrefix+"_"
-					os.rename(filename,destinationFilename+name)
+					filenamePrefix 	= str(random.randrange(1,99999999))
+					destinationDir 	= os.getcwd()+os.sep+'duplicated_files'
 
-	print ("Number of removed files : "+ str(removedFileNumber))	
+					if not os.path.exists(destinationDir):
+						os.makedirs(destinationDir)
+
+					destinationFilename = destinationDir+os.sep+filenamePrefix+"_"+name
+					sourceFilename      = filename
+					os.rename(sourceFilename,destinationFilename)
+					removedFileNumber = removedFileNumber+1
+					print ("Moved file : "+filename+" --> "+destinationFilename)
+
+	print ("Number of removed or moved files : "+ str(removedFileNumber))	
 	
 def run(directory, extension='', fastHash=False, writeOutputIntoFile=True, removeDuplicates=False):
 	
