@@ -1,4 +1,4 @@
-# duplicate-file-finder-and-remover
+# Duplicate file finder and remover
 
 The script search given directory with subdirectory, finds duplicate files and removes or moves them other directory. The script can search duplications for specific file type. It checks simply file type on file extension.
 
