@@ -5,7 +5,9 @@
 # Author: Necmettin Çarkacı
 # E-mail: necmettin [ . ] carkaci [ @ ] gmail [ . ] com
 #
-#Usage : duplicateFileFinder /home/user/binaryDir
+# Usage : python duplicateFileFinder.py -h 
+# Usage : python duplicateFileFinder.py /home/user/binaryDir
+# Usage : python duplicateFileFinder.py /home/user/binaryDir -e '.ext' -f True -m True -r False -o True
 
 
 '''
@@ -23,15 +25,21 @@
 		skip
 '''
 
-import os, sys, time, random
 import collections # for sort dictionary
-import hashlib
+import hashlib     # Default python hash operation library
+import os, shutil, sys, time, random, argparse
 
-# Collect all files form given directory and return their paths list
+
+"""
+# Collect all files from given directory and return their paths list
+# You filter file list as file extension
+# 
 # param directory : <string> directory name
-# param extension : <string> file extension, using for file type filter
+# param extensionList : <string> file extension, using for file type filter. Default value is []
+# param reverse : <boolean> Default value is False
+#
 # return <list> paths of files
-
+"""
 def getFilePaths(directory, extension=''):
 
 	file_paths = []
@@ -52,7 +60,14 @@ def getFilePaths(directory, extension=''):
 	return file_paths
 
 
-
+"""
+# Get list of files and return a dictionary group as file size.
+# 
+# param listOfFile : <list> list of file path
+#
+# return <dict> (<key><value>) : key : size, value : filename
+#
+"""
 def groupFilesAsSize(listOfFile):
 	
 	fileGroupDict = {} # <key><value> --> <size> [list of file names]
@@ -70,6 +85,16 @@ def groupFilesAsSize(listOfFile):
 	print ("Number of group : "+ str(len(fileGroupDict)))	
 	return 	fileGroupDict
 
+
+'''
+# Get file group dictionary return non-unique groups in dictionary
+# Non-unique group in dictionary means it key has multiple value
+#
+# param fileGroupDict : <dict> (<key><value>) file group
+#
+# return <dict> (<key><value>) : non-unique groups in dictionary
+#
+'''
 def filterUniqueFileSizes(fileGroupDict):
 
 	uniqueFileSizeDict = {}
@@ -106,6 +131,19 @@ def calculateHashValueForFiles(uniqueFileSizeDict, fastHash=True):
 	return hashMapFileList
 
 
+'''
+# Calculate md5 hash value for given file and return the value
+# if fast hash enabled, it calculate fast hashing.
+# Fast hashing meaning it get specific part of the file header and calculate hash for this part.
+# Fast hashing part size can give as parameter 
+#
+# param filename : <string> file path
+# param fastHash : <boolean> Specific part of the file header hashing. This enabled for big file hashing process. Default value is False
+# param buf : <integer> Fast hashing size. Default value is 1024*1024 = 1 megabyte
+#
+# return <string> : hash value of file
+#
+'''
 def hashFile(filename, fastHash, buf=(1024*1024)):
 
 	hasher = hashlib.md5()
@@ -147,7 +185,7 @@ def findDuplicateFiles(hashMapFileList, writeFile=True):
 	print ('Duplicate files written into duplicateFileList.txt file.')
 	return duplicateFileDict
 
-def removeDuplicateFiles(duplicateFileDict, removable=False):
+def removeDuplicateFiles(duplicateFileDict, move=True, removable=True):
 	
 	removedFileNumber = 0
 
@@ -158,11 +196,7 @@ def removeDuplicateFiles(duplicateFileDict, removable=False):
 				# print ("Don't removed : "+filename+" keept as original.")
 				pass
 			else :
-				if removable :
-					os.remove(filename)
-					removedFileNumber = removedFileNumber+1
-					print ("Removed file : "+filename)
-				else :
+				if move :
 					path, name 	= os.path.split(filename)
 					filenamePrefix 	= str(random.randrange(1,99999999))
 					destinationDir 	= os.getcwd()+os.sep+'duplicated_files'
@@ -172,16 +206,22 @@ def removeDuplicateFiles(duplicateFileDict, removable=False):
 
 					destinationFilename = destinationDir+os.sep+filenamePrefix+"_"+name
 					sourceFilename      = filename
-					os.rename(sourceFilename,destinationFilename)
+					shutil.copy(sourceFilename,destinationFilename)
 					removedFileNumber = removedFileNumber+1
 					print ("Moved file : "+filename+" --> "+destinationFilename)
 
+				if removable :
+					os.remove(filename)
+					removedFileNumber = removedFileNumber+1
+					print ("Removed file : "+filename)
+
+
 	print ("Number of removed or moved files : "+ str(removedFileNumber))	
 	
-def run(directory, extension='', fastHash=False, writeOutputIntoFile=True, removeDuplicates=False):
+def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDuplicates=True, writeOutputIntoFile=True ):
 	
 	start = time.time()
-	print("Start time : "+str(time.clock()))
+	print("Start time : "+str(time.ctime(start)))
 
 	listOfFile			=	getFilePaths(directory, extension)
 	print ('Files collected. The files are grouping as size ... ')	
@@ -190,7 +230,7 @@ def run(directory, extension='', fastHash=False, writeOutputIntoFile=True, remov
 	print ('Files are grouped as size. Filtering unique file sizes ...')
 
 	uniqueFileSizeDict	=	filterUniqueFileSizes(fileGroupDict)
-	print ('Filtering complted. Calculating hash values ... ...')
+	print ('Filtering completed. Calculating hash values ... ...')
 
 	hashMapFileList		=	calculateHashValueForFiles(uniqueFileSizeDict, fastHash)
 	print ('Hash values calculated. Finding duplicate files ...')	
@@ -198,15 +238,31 @@ def run(directory, extension='', fastHash=False, writeOutputIntoFile=True, remov
 	duplicateFileDict	=	findDuplicateFiles(hashMapFileList, writeOutputIntoFile)
 	print ('Duplicate file found. Removing duplicate files ...')	
 
-	removeDuplicateFiles(duplicateFileDict, removeDuplicates)
+	removeDuplicateFiles(duplicateFileDict, moveDuplicates, removeDuplicates)
 	print ('All duplicate files removed.')
 
 	end = time.time()
-	print ('End time : '+str(time.clock()))
-	print('Running time : '+str(end - start))
+	print ('End time : '+str(time.ctime(end)))
+	print('Running time : '+str(end - start)+' milisecond')
 		
 if __name__ == '__main__':
 	
-	directory = sys.argv[1]
-	run(directory)
+	parser = argparse.ArgumentParser(description="Finds duplicate files in directory and removes or moves them other directory.")
+	parser.add_argument('directory',							help="Search directory name")
+	parser.add_argument("-e", "--extension", default = '',		help="File extension")
+	parser.add_argument("-f", "--fasthash",  default = False,	help="Fast hash enabling T (True) or F (False)")
+	parser.add_argument("-m", "--move",		 default = True,	help="Moving duplicate file enabling T (True) or F (False)")
+	parser.add_argument("-r", "--remove", 	 default = True,	help="Removing duplicate file enabling T (True) or F (False)")
+	parser.add_argument("-o", "--output",	 default = True,	help="Output file name which include duplicate filenames")
+
+	args = parser.parse_args()
+
+	if args.directory :
+		run(args.directory, extension=args.extension, fastHash=args.fasthash, 
+			moveDuplicates=args.move, removeDuplicates=args.remove, writeOutputIntoFile=args.output )
+	else :
+		parser.print_help()
+		sys.exit(1)
+
+
 
