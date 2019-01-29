@@ -1,46 +1,42 @@
 #!/usr/bin/env python
-#
-# Find duplicate file and remove them.
-#
-# Author: Necmettin Çarkacı
-# E-mail: necmettin [ . ] carkaci [ @ ] gmail [ . ] com
-#
-# Usage : python duplicateFileFinder.py -h 
-# Usage : python duplicateFileFinder.py /home/user/binaryDir
-# Usage : python duplicateFileFinder.py /home/user/binaryDir -e '.ext' -f True -m True -r False -o True
-
-
-'''
-	@ url :http://stackoverflow.com/questions/6507272/algorithm-to-find-duplicates
-	Algorithm :
-
-	Group files as size
-	Eliminate unique file size from group # no need them they are already unique
-
-	Check fast hash for files in group # Hash file little peace
-
-	if hash same :
-		check full hash # File full content hash
-	else :
-		skip
-'''
-
 import collections # for sort dictionary
 import hashlib     # Default python hash operation library
 import os, shutil, sys, time, random, argparse
 
+'''
+Find duplicate file and remove them.
 
-"""
-# Collect all files from given directory and return their paths list
-# You filter file list as file extension
-# 
-# param directory : <string> directory name
-# param extensionList : <string> file extension, using for file type filter. Default value is []
-# param reverse : <boolean> Default value is False
-#
-# return <list> paths of files
-"""
+Author: Necmettin Çarkacı
+E-mail: necmettin [ . ] carkaci [ @ ] gmail [ . ] com
+
+Usage : python duplicateFileFinder.py -h
+Usage : python duplicateFileFinder.py /home/user/binaryDir
+Usage : python duplicateFileFinder.py /home/user/binaryDir -e '.ext' -f True -m True -r False -o True
+
+
+@ url :http://stackoverflow.com/questions/6507272/algorithm-to-find-duplicates
+Algorithm :
+
+Group files as size
+Eliminate unique file size from group # no need them they are already unique
+
+Check fast hash for files in group # Hash file little peace
+
+if hash same :
+	check full hash # File full content hash
+else :
+	skip
+'''
+
+
 def getFilePaths(directory, extension=''):
+	"""
+	Collect all files from given directory and return their paths list
+	You filter file list as file extension
+	:param directory: <string> directory name
+	:param extension: <string> file extension, using for file type filter. Default value is []
+	:return: <list> paths of files
+	"""
 
 	file_paths = []
 
@@ -60,15 +56,12 @@ def getFilePaths(directory, extension=''):
 	return file_paths
 
 
-"""
-# Get list of files and return a dictionary group as file size.
-# 
-# param listOfFile : <list> list of file path
-#
-# return <dict> (<key><value>) : key : size, value : filename
-#
-"""
 def groupFilesAsSize(listOfFile):
+	"""
+	Get list of files and return a dictionary group as file size.
+	:param listOfFile: <list> list of file path
+	:return: <dict> (<key><value>) : key : size, value : filename
+	"""
 	
 	fileGroupDict = {} # <key><value> --> <size> [list of file names]
 
@@ -86,16 +79,14 @@ def groupFilesAsSize(listOfFile):
 	return 	fileGroupDict
 
 
-'''
-# Get file group dictionary return non-unique groups in dictionary
-# Non-unique group in dictionary means it key has multiple value
-#
-# param fileGroupDict : <dict> (<key><value>) file group
-#
-# return <dict> (<key><value>) : non-unique groups in dictionary
-#
-'''
 def filterUniqueFileSizes(fileGroupDict):
+	"""
+	Get file group dictionary return non-unique groups in dictionary
+	Non-unique group in dictionary means it key has multiple value
+
+	:param fileGroupDict: <dict> (<key><value>) file group
+	:return: <dict> (<key><value>) : non-unique groups in dictionary
+	"""
 
 	uniqueFileSizeDict = {}
 
@@ -131,29 +122,26 @@ def calculateHashValueForFiles(uniqueFileSizeDict, fastHash=True):
 	return hashMapFileList
 
 
-'''
-# Calculate md5 hash value for given file and return the value
-# if fast hash enabled, it calculate fast hashing.
-# Fast hashing meaning it get specific part of the file header and calculate hash for this part.
-# Fast hashing part size can give as parameter 
-#
-# param filename : <string> file path
-# param fastHash : <boolean> Specific part of the file header hashing. This enabled for big file hashing process. Default value is False
-# param buf : <integer> Fast hashing size. Default value is 1024*1024 = 1 megabyte
-#
-# return <string> : hash value of file
-#
-'''
 def hashFile(filename, fastHash, buf=(1024*1024)):
+	"""
+	Calculate md5 hash value for given file and return the value
+	if fast hash enabled, it calculate fast hashing.
+	Fast hashing meaning it get specific part of the file header and calculate hash for this part.
+	Fast hashing part size can give as parameter and it should enabled for big file hashing process.
+	:param filename: <string> file path. Default value is False
+	:param fastHash: <boolean> Specific part of the file header hashing.
+	:param buf: <integer> Fast hashing size. Default value is 1024*1024 = 1 megabyte
+	:return: <string> hash value of file
+	"""
 
 	hasher = hashlib.md5()
 	with open(filename, 'rb') as file:
 		
 		if (fastHash) :
-		    chunk = file.read(buf)
-		    while len(chunk) > 0:
-		        hasher.update(chunk)
-		        chunk = file.read(buf)
+			chunk = file.read(buf)
+			while len(chunk) > 0:
+				hasher.update(chunk)
+				chunk = file.read(buf)
 		else :
 			content = file.read()
 			hasher.update(content)
