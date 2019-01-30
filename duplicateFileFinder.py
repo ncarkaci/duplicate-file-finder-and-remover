@@ -3,6 +3,9 @@ import collections # for sort dictionary
 import hashlib     # Default python hash operation library
 import os, shutil, sys, time, random, argparse
 import logging
+import six
+import imagehash
+from PIL import Image
 
 '''
 Find duplicate file and remove them.
@@ -54,7 +57,7 @@ def getFilePaths(directory, extension=None):
 
 					logger.debug('File path : ', file_path)
 
-			else: # Collect all files under directory
+			else:# Collect all files under directory
 					file_path = os.path.join(root, filename)
 					file_path_list.append(file_path)
 
@@ -113,13 +116,13 @@ def filterUniqueFileSizes(fileGroupDict):
 
 
 def calculateHashValueForFiles(uniqueFileSizeDict, fastHash=True):
-	'''
+	"""
 	Calculate hash values for file in list of files
 
 	:param uniqueFileSizeDict: <dict> (<key><value>) file group
 	:param fastHash: <boolean> fast hash is enabled
 	:return: <dict> (<key><value>) : key : filename, value : hash value
-	'''
+	"""
 
 	hashMapFileList = {} # <int><list> --> hash value, filename list
 
@@ -227,6 +230,57 @@ def removeDuplicateFiles(duplicateFileDict, moveDuplicates=True, removeDuplicate
 
 	logger.info("Number of removed or moved files : "+str(removedFileNumber))
 
+
+def findSimilarImages(listOfFile, hashfunc=imagehash.average_hash, moveDuplicates=True, removeDuplicates=True,
+					  writeOutputIntoFile=True):
+
+	# Filter image files
+	image_extensin_list = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
+	image_filenames = [filename for filename in listOfFile if filename.lower().split('.')[-1] in image_extensin_list]
+
+	images = {}
+	for img in sorted(image_filenames):
+		try:
+			hash = hashfunc(Image.open(img))
+			logger.debug('Filename :', img,' hash value : ', hash)
+		except Exception as e:
+			logger.error('Problem:', e, 'with', img)
+			pass
+
+		images[hash] = images.get(hash, []) + [img]
+
+	for k, image_file_list in six.iteritems(images):
+
+		if len(image_file_list) > 1:
+			main_picture = image_file_list[0]
+
+			for image_file in image_file_list[1:]:
+				if os.path.getsize(image_file) > os.path.getsize(main_picture):
+					main_picture = image_file
+
+			image_file_list.remove(main_picture)
+
+			for filename in image_file_list:
+				if moveDuplicates:
+					path, name = os.path.split(filename)
+					filenamePrefix = str(random.randrange(1, 99999999))
+					destinationDir = os.getcwd() + os.sep + 'duplicated_files'
+
+					if not os.path.exists(destinationDir):
+						os.makedirs(destinationDir)
+
+					destinationFilename = destinationDir + os.sep + filenamePrefix + "_" + name
+					sourceFilename = filename
+					shutil.copy(sourceFilename, destinationFilename)
+					logger.debug("Moved file : " + filename + " --> " + destinationFilename)
+
+				if removeDuplicates:
+					os.remove(filename)
+					logger.debug("Removed file : " + filename)
+
+	return True
+
+
 def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDuplicates=True, writeOutputIntoFile=True ):
 
 	start = time.time()
@@ -250,6 +304,12 @@ def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDupl
 	removeDuplicateFiles(duplicateFileDict, moveDuplicates, removeDuplicates)
 	logger.info('All duplicate files removed.')
 
+	listOfFile			= getFilePaths(directory, extension)
+	logger.info('Files collected. The files are grouping as size ... ')
+
+	duplicateImageList = findSimilarImages(listOfFile)
+	logger.info('Duplicate images removed')
+
 	end = time.time()
 	logger.info('End time : '+str(time.ctime(end)))
 	logger.info('Running time : '+str(end - start)+' milisecond')
@@ -268,9 +328,12 @@ if __name__ == '__main__':
 
 	logger.info('Params : '+str(args))
 
+	if args.extensions != "":
+		args.extensions = args.extensions.split(",")
+
 	if args.directory:
 		run(args.directory,
-			extension=args.extensions.split(","),
+			extension=args.extensions,
 			fastHash=args.fasthash,
 			moveDuplicates=args.move,
 			removeDuplicates=args.remove,
