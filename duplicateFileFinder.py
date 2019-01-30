@@ -2,6 +2,7 @@
 import collections # for sort dictionary
 import hashlib     # Default python hash operation library
 import os, shutil, sys, time, random, argparse
+import logging
 
 '''
 Find duplicate file and remove them.
@@ -29,31 +30,39 @@ else :
 '''
 
 
-def getFilePaths(directory, extension=''):
+# Define logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def getFilePaths(directory, extension=None):
 	"""
-	Collect all files from given directory and return their paths list
-	You filter file list as file extension
+	Collect all files as an extension from given directory and return their paths list
+
 	:param directory: <string> directory name
 	:param extension: <string> file extension, using for file type filter. Default value is []
 	:return: <list> paths of files
 	"""
 
-	file_paths = []
-
+	file_path_list = []
 	for root, directories, files in os.walk(directory):
 		for filename in files:
-			if (extension != '') :
-				if (filename.endswith(extension)):			
-					filepath = os.path.join(root, filename)
-					file_paths.append(filepath) 
-					#print (filepath)
-			else :				
-					filepath = os.path.join(root, filename)
-					file_paths.append(filepath) 
-					#print (filepath)
+			if extension != "":
 
-	print ("Number of file found : "+ str(len(file_paths)))
-	return file_paths
+				if filename.split(".")[-1] in extension:
+					file_path = os.path.join(root, filename)
+					file_path_list.append(file_path)
+
+					logger.debug('File path : ', file_path)
+
+			else: # Collect all files under directory
+					file_path = os.path.join(root, filename)
+					file_path_list.append(file_path)
+
+					logger.debug('File path : ', file_path)
+
+	logger.info("Number of file found : "+str(len(file_path_list)))
+
+	return file_path_list
 
 
 def groupFilesAsSize(listOfFile):
@@ -62,21 +71,23 @@ def groupFilesAsSize(listOfFile):
 	:param listOfFile: <list> list of file path
 	:return: <dict> (<key><value>) : key : size, value : filename
 	"""
-	
+
 	fileGroupDict = {} # <key><value> --> <size> [list of file names]
 
 	for filename in listOfFile:
 		size = os.path.getsize(filename)
-		
-		if size in fileGroupDict.keys(): # or if fileGroupDict.get(size, []):
+
+		if size in fileGroupDict.keys():
 			fileGroupDict[size].append(filename)
-		else :
-			fileGroupDict[size] = [] # create list for value of key
+		else:
+			# create list for value of key
+			fileGroupDict[size] = []
 			fileGroupDict[size].append(filename)
-	
-	#print (fileGroupDict)
-	print ("Number of group : "+ str(len(fileGroupDict)))	
-	return 	fileGroupDict
+
+	logger.debug('File Group : ', fileGroupDict)
+	logger.info("Number of group : "+str(len(fileGroupDict)))
+
+	return fileGroupDict
 
 
 def filterUniqueFileSizes(fileGroupDict):
@@ -92,33 +103,45 @@ def filterUniqueFileSizes(fileGroupDict):
 
 	for size in fileGroupDict:
 		listOfFile = fileGroupDict[size]
-		if (len(listOfFile) > 1):
+		if len(listOfFile) > 1:
 			uniqueFileSizeDict[size] = listOfFile
 
-	#print (uniqueFileSizeDict)
-	print ("Number of group after filtering : "+ str(len(uniqueFileSizeDict)))
+	logger.debug('Unique file size dict : ', uniqueFileSizeDict)
+	logger.info("Number of group after filtering : "+str(len(uniqueFileSizeDict)))
+
 	return uniqueFileSizeDict
 
 
 def calculateHashValueForFiles(uniqueFileSizeDict, fastHash=True):
-	
+	'''
+	Calculate hash values for file in list of files
+
+	:param uniqueFileSizeDict: <dict> (<key><value>) file group
+	:param fastHash: <boolean> fast hash is enabled
+	:return: <dict> (<key><value>) : key : filename, value : hash value
+	'''
+
 	hashMapFileList = {} # <int><list> --> hash value, filename list
-	
+
 	for size in uniqueFileSizeDict:
-		#print ("\n	Size : "+str(size)+" Kb")		
-		
-		listOfFile = uniqueFileSizeDict[size] 
-		
+
+		logger.debug('\n File size ', str(size), " Kb")
+
+
+		listOfFile = uniqueFileSizeDict[size]
+
 		for filename in listOfFile:
 
 			hashValue = hashFile(filename, fastHash)
-						
+
 			if hashValue in hashMapFileList.keys():
 				hashMapFileList[hashValue].append(filename)
 			else :
 				hashMapFileList[hashValue] = []
 				hashMapFileList[hashValue].append(filename)
-	print ("Number of hash values : "+ str(len(hashMapFileList)))	
+
+	logger.info("Number of hash values : "+str(len(hashMapFileList)))
+
 	return hashMapFileList
 
 
@@ -136,55 +159,54 @@ def hashFile(filename, fastHash, buf=(1024*1024)):
 
 	hasher = hashlib.md5()
 	with open(filename, 'rb') as file:
-		
+
 		if (fastHash) :
 			chunk = file.read(buf)
 			while len(chunk) > 0:
 				hasher.update(chunk)
 				chunk = file.read(buf)
-		else :
+		else:
 			content = file.read()
 			hasher.update(content)
 
-	#print(hasher.hexdigest())
-	
 	return hasher.hexdigest()
 
 
 def findDuplicateFiles(hashMapFileList, writeFile=True):
-	
+
 	duplicateFileDict = {}
 
 	for hashValue in hashMapFileList:
 		listOfFile = hashMapFileList[hashValue]
-		if (len(listOfFile) > 1):
+		if len(listOfFile) > 1:
 			duplicateFileDict[hashValue] = listOfFile
 
-	#print (duplicateFileDict)
-	print ("Number of duplicate hash values : "+ str(len(duplicateFileDict)))	
+	logger.debug('Duplicate file dict : ', duplicateFileDict)
+	logger.info("Number of duplicate hash values : "+str(len(duplicateFileDict)))
 
-	if (writeFile):
+	if writeFile:
 		with open('duplicateFileList.txt','w') as outputFile:
 			for hashValue in duplicateFileDict:
 				listOfFile = duplicateFileDict[hashValue]
 				for filename in listOfFile:
 					outputFile.write(hashValue+'\t'+filename+'\n')
 				outputFile.write('\n')
-	print ('Duplicate files written into duplicateFileList.txt file.')
+	logger.info('Duplicate files written into duplicateFileList.txt file.')
+
 	return duplicateFileDict
 
-def removeDuplicateFiles(duplicateFileDict, move=True, removable=True):
-	
+def removeDuplicateFiles(duplicateFileDict, moveDuplicates=True, removeDuplicates=True):
+
 	removedFileNumber = 0
 
 	for hashValue in duplicateFileDict:
 		listOfFile = duplicateFileDict[hashValue]
 		for filename in listOfFile:
-			if listOfFile.index(filename) == 1: # don't remove first file keep them as original file
-				# print ("Don't removed : "+filename+" keept as original.")
+			if listOfFile.index(filename) == 1:
+				# don't remove first file keep them as original file
 				pass
-			else :
-				if move :
+			else:
+				if moveDuplicates :
 					path, name 	= os.path.split(filename)
 					filenamePrefix 	= str(random.randrange(1,99999999))
 					destinationDir 	= os.getcwd()+os.sep+'duplicated_files'
@@ -196,59 +218,64 @@ def removeDuplicateFiles(duplicateFileDict, move=True, removable=True):
 					sourceFilename      = filename
 					shutil.copy(sourceFilename,destinationFilename)
 					removedFileNumber = removedFileNumber+1
-					print ("Moved file : "+filename+" --> "+destinationFilename)
+					logger.debug("Moved file : "+filename+" --> "+destinationFilename)
 
-				if removable :
+				if removeDuplicates :
 					os.remove(filename)
 					removedFileNumber = removedFileNumber+1
-					print ("Removed file : "+filename)
+					logger.debug("Removed file : "+filename)
 
+	logger.info("Number of removed or moved files : "+str(removedFileNumber))
 
-	print ("Number of removed or moved files : "+ str(removedFileNumber))	
-	
 def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDuplicates=True, writeOutputIntoFile=True ):
-	
+
 	start = time.time()
-	print("Start time : "+str(time.ctime(start)))
+	logger.info("Start time : "+str(time.ctime(start)))
 
-	listOfFile			=	getFilePaths(directory, extension)
-	print ('Files collected. The files are grouping as size ... ')	
+	listOfFile			= getFilePaths(directory, extension)
+	logger.info('Files collected. The files are grouping as size ... ')
 
-	fileGroupDict		=	groupFilesAsSize(listOfFile)
-	print ('Files are grouped as size. Filtering unique file sizes ...')
+	fileGroupDict		= groupFilesAsSize(listOfFile)
+	logger.info('Files are grouped as size. Filtering unique file sizes ...')
 
-	uniqueFileSizeDict	=	filterUniqueFileSizes(fileGroupDict)
-	print ('Filtering completed. Calculating hash values ... ...')
+	uniqueFileSizeDict	= filterUniqueFileSizes(fileGroupDict)
+	logger.info('Filtering completed. Calculating hash values ...')
 
-	hashMapFileList		=	calculateHashValueForFiles(uniqueFileSizeDict, fastHash)
-	print ('Hash values calculated. Finding duplicate files ...')	
+	hashMapFileList		= calculateHashValueForFiles(uniqueFileSizeDict, fastHash)
+	logger.info('Hash values calculated. Finding duplicate files ...')
 
-	duplicateFileDict	=	findDuplicateFiles(hashMapFileList, writeOutputIntoFile)
-	print ('Duplicate file found. Removing duplicate files ...')	
+	duplicateFileDict	= findDuplicateFiles(hashMapFileList, writeOutputIntoFile)
+	logger.info('Duplicate file found. Removing duplicate files ...')
 
 	removeDuplicateFiles(duplicateFileDict, moveDuplicates, removeDuplicates)
-	print ('All duplicate files removed.')
+	logger.info('All duplicate files removed.')
 
 	end = time.time()
-	print ('End time : '+str(time.ctime(end)))
-	print('Running time : '+str(end - start)+' milisecond')
-		
+	logger.info('End time : '+str(time.ctime(end)))
+	logger.info('Running time : '+str(end - start)+' milisecond')
+
 if __name__ == '__main__':
-	
+
 	parser = argparse.ArgumentParser(description="Finds duplicate files in directory and removes or moves them other directory.")
-	parser.add_argument('directory',							help="Search directory name")
-	parser.add_argument("-e", "--extension", default = '',		help="File extension")
-	parser.add_argument("-f", "--fasthash",  default = False,	help="Fast hash enabling T (True) or F (False)")
-	parser.add_argument("-m", "--move",		 default = True,	help="Moving duplicate file enabling T (True) or F (False)")
-	parser.add_argument("-r", "--remove", 	 default = True,	help="Removing duplicate file enabling T (True) or F (False)")
-	parser.add_argument("-o", "--output",	 default = True,	help="Output file name which include duplicate filenames")
+	parser.add_argument('directory',									help="Search directory name")
+	parser.add_argument("-e", "--extensions",	default="",			help="Proceed file extension list")
+	parser.add_argument("-f", "--fasthash",   	action='store_true',	help="Fast hash enabling T (True) or F (False)")
+	parser.add_argument("-m", "--move",			action='store_true',	help="Moving duplicate file enabling T (True) or F (False)")
+	parser.add_argument("-r", "--remove", 		action='store_true',	help="Removing duplicate file enabling T (True) or F (False)")
+	parser.add_argument("-o", "--outfile",  	action='store_true',	help="Output file name which include duplicate filenames")
 
 	args = parser.parse_args()
 
-	if args.directory :
-		run(args.directory, extension=args.extension, fastHash=args.fasthash, 
-			moveDuplicates=args.move, removeDuplicates=args.remove, writeOutputIntoFile=args.output )
-	else :
+	logger.info('Params : '+str(args))
+
+	if args.directory:
+		run(args.directory,
+			extension=args.extensions.split(","),
+			fastHash=args.fasthash,
+			moveDuplicates=args.move,
+			removeDuplicates=args.remove,
+			writeOutputIntoFile=args.outfile)
+	else:
 		parser.print_help()
 		sys.exit(1)
 

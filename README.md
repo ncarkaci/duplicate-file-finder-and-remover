@@ -18,5 +18,20 @@ Algorithm :
 	else :
 		skip
 
+### Param List
+* -e or --extension is File extension list e.i. "png,jpg"
+* -f or --fasthash is Fast hash enabling T (True) or F (False), default is False
+* -m or --move is Moving duplicate file enabling T (True) or F (False), default is False
+* -r or --remove Removing duplicate file enabling T (True) or F (False), default is False
+* -o or --output Output file name which include duplicate filenames, default is False
+
+
+### Usage
+```
+python duplicateFileFinder.py -h
+python duplicateFileFinder.py /home/user/directory
+python duplicateFileFinder.py /home/user/directory --move -remomve -outfile
+python duplicateFileFinder.py /home/user/directory --extension 'jpg,png' -fasthash --move -remomve -outfile
+```
 
 
