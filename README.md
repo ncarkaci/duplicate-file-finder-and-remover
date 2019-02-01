@@ -24,6 +24,7 @@ Algorithm :
 * -m or --move is Moving duplicate file enabling T (True) or F (False), default is False
 * -r or --remove Removing duplicate file enabling T (True) or F (False), default is False
 * -o or --output Output file name which include duplicate filenames, default is False
+* -i or --compressed Detect compressed and rescale image file duplication
 
 
 ### Usage
