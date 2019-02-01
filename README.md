@@ -30,8 +30,8 @@ Algorithm :
 ```
 python duplicateFileFinder.py -h
 python duplicateFileFinder.py /home/user/directory
-python duplicateFileFinder.py /home/user/directory --move -remomve -outfile
-python duplicateFileFinder.py /home/user/directory --extension 'jpg,png' -fasthash --move -remomve -outfile
+python duplicateFileFinder.py /home/user/directory --move -remome  --compressed -outfile
+python duplicateFileFinder.py /home/user/directory --extension 'jpg,png' -fasthash --move -remomve -outfile --compressed
 ```
 
 

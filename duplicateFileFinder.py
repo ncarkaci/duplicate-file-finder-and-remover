@@ -37,27 +37,26 @@ else :
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def getFilePaths(directory, extension=None):
+
+def get_file_paths (directory, extensions=None):
 	"""
 	Collect all files as an extension from given directory and return their paths list
-
 	:param directory: <string> directory name
-	:param extension: <string> file extension, using for file type filter. Default value is []
+	:param extensions: <string> file extension, using for file type filter. Default value is []
 	:return: <list> paths of files
 	"""
 
 	file_path_list = []
 	for root, directories, files in os.walk(directory):
 		for filename in files:
-			if extension != "":
+			if extensions != "":
 
-				if filename.split(".")[-1] in extension:
+				if filename.split(".")[-1] in extensions:
 					file_path = os.path.join(root, filename)
 					file_path_list.append(file_path)
-
 					logger.debug('File path : ', file_path)
 
-			else:# Collect all files under directory
+			else:  # Collect all files under directory
 					file_path = os.path.join(root, filename)
 					file_path_list.append(file_path)
 
@@ -68,44 +67,44 @@ def getFilePaths(directory, extension=None):
 	return file_path_list
 
 
-def groupFilesAsSize(listOfFile):
+def group_files_as_size(file_names):
 	"""
 	Get list of files and return a dictionary group as file size.
-	:param listOfFile: <list> list of file path
+	:param file_names: <list> list of file path
 	:return: <dict> (<key><value>) : key : size, value : filename
 	"""
 
-	fileGroupDict = {} # <key><value> --> <size> [list of file names]
+	file_group = {}  # <key><value> --> <size> [list of file names]
 
-	for filename in listOfFile:
+	for filename in file_names:
 		size = os.path.getsize(filename)
 
-		if size in fileGroupDict.keys():
-			fileGroupDict[size].append(filename)
+		if size in file_group.keys():
+			file_group[size].append(filename)
 		else:
 			# create list for value of key
-			fileGroupDict[size] = []
-			fileGroupDict[size].append(filename)
+			file_group[size] = []
+			file_group[size].append(filename)
 
-	logger.debug('File Group : ', fileGroupDict)
-	logger.info("Number of group : "+str(len(fileGroupDict)))
+	logger.debug('File Group : ', file_group)
+	logger.info("Number of group : "+str(len(file_group)))
 
-	return fileGroupDict
+	return file_group
 
 
-def filterUniqueFileSizes(fileGroupDict):
+def filter_unique_file_sizes(file_group):
 	"""
 	Get file group dictionary return non-unique groups in dictionary
 	Non-unique group in dictionary means it key has multiple value
 
-	:param fileGroupDict: <dict> (<key><value>) file group
+	:param file_group: <dict> (<key><value>) file group
 	:return: <dict> (<key><value>) : non-unique groups in dictionary
 	"""
 
 	uniqueFileSizeDict = {}
 
-	for size in fileGroupDict:
-		listOfFile = fileGroupDict[size]
+	for size in file_group:
+		listOfFile = file_group[size]
 		if len(listOfFile) > 1:
 			uniqueFileSizeDict[size] = listOfFile
 
@@ -124,7 +123,7 @@ def calculateHashValueForFiles(uniqueFileSizeDict, fastHash=True):
 	:return: <dict> (<key><value>) : key : filename, value : hash value
 	"""
 
-	hashMapFileList = {} # <int><list> --> hash value, filename list
+	hashMapFileList = {}  # <int><list> --> hash value, filename list
 
 	for size in uniqueFileSizeDict:
 
@@ -188,7 +187,7 @@ def findDuplicateFiles(hashMapFileList, writeFile=True):
 	logger.info("Number of duplicate hash values : "+str(len(duplicateFileDict)))
 
 	if writeFile:
-		with open('duplicateFileList.txt','w') as outputFile:
+		with open('duplicateFileList.txt', 'w') as outputFile:
 			for hashValue in duplicateFileDict:
 				listOfFile = duplicateFileDict[hashValue]
 				for filename in listOfFile:
@@ -198,101 +197,111 @@ def findDuplicateFiles(hashMapFileList, writeFile=True):
 
 	return duplicateFileDict
 
-def removeDuplicateFiles(duplicateFileDict, moveDuplicates=True, removeDuplicates=True):
+def remove_duplicate_files(duplicateFileDict, moveDuplicates=True, removeDuplicates=True, isImageFile=False):
+	"""
+	Move and remove given file list.
+	:param duplicateFileDict: <dict> (<key><value>) : key : hash value, value : duplicate file list
+	:param moveDuplicates: Move duplicate files, default True
+	:param removeDuplicates: Remove duplicate files, default True
+	:param isImageFile: Files are images or not. If files are images, keep and don't remove biggest of the list
+	:return: void
+	"""
 
 	removedFileNumber = 0
+	movedFileNumber   = 0
 
 	for hashValue in duplicateFileDict:
 		listOfFile = duplicateFileDict[hashValue]
-		for filename in listOfFile:
-			if listOfFile.index(filename) == 1:
-				# don't remove first file keep them as original file
-				pass
-			else:
-				if moveDuplicates :
-					path, name 	= os.path.split(filename)
-					filenamePrefix 	= str(random.randrange(1,99999999))
-					destinationDir 	= os.getcwd()+os.sep+'duplicated_files'
+		for filename in listOfFile[1:]:
 
-					if not os.path.exists(destinationDir):
-						os.makedirs(destinationDir)
+			main_file = listOfFile[0]
 
-					destinationFilename = destinationDir+os.sep+filenamePrefix+"_"+name
-					sourceFilename      = filename
-					shutil.copy(sourceFilename,destinationFilename)
-					removedFileNumber = removedFileNumber+1
-					logger.debug("Moved file : "+filename+" --> "+destinationFilename)
+			if isImageFile:
+				for image_file in listOfFile[1:]:
+					if os.path.getsize(image_file) > os.path.getsize(main_file):
+						main_file = image_file
 
-				if removeDuplicates :
-					os.remove(filename)
-					removedFileNumber = removedFileNumber+1
-					logger.debug("Removed file : "+filename)
+			listOfFile.remove(main_file)
 
-	logger.info("Number of removed or moved files : "+str(removedFileNumber))
+			if moveDuplicates:
+				path, name = os.path.split(filename)
+				filenamePrefix 	= str(random.randrange(1, 99999999))
+
+				if isImageFile:
+					destinationDir 	= os.getcwd()+os.sep+'duplicate_images'
+				else:
+					destinationDir = os.getcwd() + os.sep + 'duplicate_files'
+				if not os.path.exists(destinationDir):
+					os.makedirs(destinationDir)
+
+				destinationFilename = destinationDir+os.sep+filenamePrefix+"_"+name
+				sourceFilename      = filename
+				shutil.copy(sourceFilename, destinationFilename)
+				movedFileNumber = movedFileNumber+1
+				logger.debug("Moved file : "+filename+" --> "+destinationFilename)
+
+			if removeDuplicates:
+				os.remove(filename)
+				removedFileNumber = removedFileNumber+1
+				logger.debug("Removed file : "+filename)
+
+	logger.info("Number of removed files : "+str(removedFileNumber))
+	logger.info("Number of moved   files : "+str(movedFileNumber))
 
 
-def findSimilarImages(listOfFile, hashfunc=imagehash.average_hash, moveDuplicates=True, removeDuplicates=True,
-					  writeOutputIntoFile=True):
+def find_similar_images(file_list, hash_function=imagehash.average_hash, writeFile=True):
+	"""
+	Find duplicate images which can be resize or compressed, return list of th duplicate files
+	:param file_list: File path list
+	:param hash_function: The hash function which used for calculate hash of the files
+	:param writeOutputIntoFile: Duplicate file names write into file, default True
+	:return: <dict> (<key><value>) : key : hash value, value : duplicate file list
+	"""
 
 	# Filter image files
-	image_extensin_list = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
-	image_filenames = [filename for filename in listOfFile if filename.lower().split('.')[-1] in image_extensin_list]
+	image_extensions = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
+	image_filenames = [filename for filename in file_list if filename.lower().split('.')[-1] in image_extensions]
 
 	images = {}
 	for img in sorted(image_filenames):
 		try:
-			hash = hashfunc(Image.open(img))
-			logger.debug('Filename :', img,' hash value : ', hash)
+			image_hash = hash_function(Image.open(img))
+			images[image_hash] = images.get(image_hash, []) + [img]
+			logger.debug('Filename :', img, ' image_hash value : ', image_hash)
 		except Exception as e:
 			logger.error('Problem:', e, 'with', img)
 			pass
 
-		images[hash] = images.get(hash, []) + [img]
+	duplicate_images = {}
+	for image_hash, image_file_list in six.iteritems(images):
 
-	for k, image_file_list in six.iteritems(images):
-
+		# Filter duplicate images
 		if len(image_file_list) > 1:
-			main_picture = image_file_list[0]
+			duplicate_images[image_hash] = image_file_list
 
-			for image_file in image_file_list[1:]:
-				if os.path.getsize(image_file) > os.path.getsize(main_picture):
-					main_picture = image_file
+	if writeFile:
+		with open('duplicateImageList.txt', 'w') as outputFile:
+			for hashValue in duplicate_images:
+				file_list = duplicate_images[hashValue]
+				for filename in file_list:
+					outputFile.write(str(hashValue)+'\t'+filename+'\n')
+				outputFile.write('\n')
+	logger.info('Duplicate images written into duplicateImageList.txt file.')
 
-			image_file_list.remove(main_picture)
+	return duplicate_images
 
-			for filename in image_file_list:
-				if moveDuplicates:
-					path, name = os.path.split(filename)
-					filenamePrefix = str(random.randrange(1, 99999999))
-					destinationDir = os.getcwd() + os.sep + 'duplicated_files'
-
-					if not os.path.exists(destinationDir):
-						os.makedirs(destinationDir)
-
-					destinationFilename = destinationDir + os.sep + filenamePrefix + "_" + name
-					sourceFilename = filename
-					shutil.copy(sourceFilename, destinationFilename)
-					logger.debug("Moved file : " + filename + " --> " + destinationFilename)
-
-				if removeDuplicates:
-					os.remove(filename)
-					logger.debug("Removed file : " + filename)
-
-	return True
-
-
-def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDuplicates=True, writeOutputIntoFile=True ):
+def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDuplicates=True, writeOutputIntoFile=True, isImageFile=True ):
 
 	start = time.time()
 	logger.info("Start time : "+str(time.ctime(start)))
 
-	listOfFile			= getFilePaths(directory, extension)
+	file_names			= get_file_paths(directory, extension)
 	logger.info('Files collected. The files are grouping as size ... ')
 
-	fileGroupDict		= groupFilesAsSize(listOfFile)
+	fileGroupDict		= group_files_as_size(file_names)
 	logger.info('Files are grouped as size. Filtering unique file sizes ...')
 
-	uniqueFileSizeDict	= filterUniqueFileSizes(fileGroupDict)
+	uniqueFileSizeDict	= filter_unique_file_sizes(fileGroupDict)
 	logger.info('Filtering completed. Calculating hash values ...')
 
 	hashMapFileList		= calculateHashValueForFiles(uniqueFileSizeDict, fastHash)
@@ -301,14 +310,17 @@ def run(directory, extension='', fastHash=False, moveDuplicates=True, removeDupl
 	duplicateFileDict	= findDuplicateFiles(hashMapFileList, writeOutputIntoFile)
 	logger.info('Duplicate file found. Removing duplicate files ...')
 
-	removeDuplicateFiles(duplicateFileDict, moveDuplicates, removeDuplicates)
+	remove_duplicate_files(duplicateFileDict, moveDuplicates, removeDuplicates)
 	logger.info('All duplicate files removed.')
 
-	listOfFile			= getFilePaths(directory, extension)
-	logger.info('Files collected. The files are grouping as size ... ')
+	file_names = get_file_paths(directory, extension)
+	logger.info('Files collected. Duplicate images finding ... ')
 
-	duplicateImageList = findSimilarImages(listOfFile)
-	logger.info('Duplicate images removed')
+	duplicate_images = find_similar_images(file_names)
+	logger.info('Duplicate images found. Removing duplicate files ...')
+
+	remove_duplicate_files(duplicate_images, moveDuplicates, removeDuplicates, isImageFile=True)
+	logger.info('All duplicate images removed.')
 
 	end = time.time()
 	logger.info('End time : '+str(time.ctime(end)))
@@ -318,11 +330,12 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(description="Finds duplicate files in directory and removes or moves them other directory.")
 	parser.add_argument('directory',									help="Search directory name")
-	parser.add_argument("-e", "--extensions",	default="",			help="Proceed file extension list")
+	parser.add_argument("-e", "--extensions",	default="",				help="Proceed file extension list")
 	parser.add_argument("-f", "--fasthash",   	action='store_true',	help="Fast hash enabling T (True) or F (False)")
 	parser.add_argument("-m", "--move",			action='store_true',	help="Moving duplicate file enabling T (True) or F (False)")
 	parser.add_argument("-r", "--remove", 		action='store_true',	help="Removing duplicate file enabling T (True) or F (False)")
-	parser.add_argument("-o", "--outfile",  	action='store_true',	help="Output file name which include duplicate filenames")
+	parser.add_argument("-o", "--outfile",  	action='store_true',	help="Output file name which include duplicate file names")
+	parser.add_argument("-i", "--compressed", 	action='store_true',	help="Check duplication resized and compressed images")
 
 	args = parser.parse_args()
 
@@ -337,7 +350,8 @@ if __name__ == '__main__':
 			fastHash=args.fasthash,
 			moveDuplicates=args.move,
 			removeDuplicates=args.remove,
-			writeOutputIntoFile=args.outfile)
+			writeOutputIntoFile=args.outfile,
+			isImageFile=args.compressed)
 	else:
 		parser.print_help()
 		sys.exit(1)
